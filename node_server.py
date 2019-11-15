@@ -65,11 +65,14 @@ class Blockchain:
     def __init__(self):
         self.unconfirmed_transactions = []
         self.chain = []
-        storage.child("/blockchain.pkl").download("blockchain.pkl")
-        try:
-            with open("blockchain.pkl", "rb") as f:
-                self.chain = pickle.load(f)
-        except FileNotFoundError:
+        if os.environ['LOAD_CHAIN'] == "true":
+            storage.child("/blockchain.pkl").download("blockchain.pkl")
+            try:
+                with open("blockchain.pkl", "rb") as f:
+                    self.chain = pickle.load(f)
+            except FileNotFoundError:
+                self.chain = []
+        else:
             self.chain = []
 
     def create_genesis_block(self):

@@ -4,13 +4,14 @@ import time
 import pickle
 
 from flask import Flask, request
-import requests
+# import requests
 
 import pyrebase
 from dotenv import load_dotenv
 load_dotenv()
 from urllib.parse import unquote
 import os
+from blockchain import Block, Blockchain, peers
 
 BASE_COINS = 10.00000
 MIN_COINS = 0.0001
@@ -42,155 +43,155 @@ storage = firebase.storage()
 
 import encryption
 
-class Block:
-    def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
-        self.index = index
-        self.transactions = transactions
-        self.timestamp = timestamp
-        self.previous_hash = previous_hash
-        self.nonce = nonce
+# class Block:
+#     def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
+#         self.index = index
+#         self.transactions = transactions
+#         self.timestamp = timestamp
+#         self.previous_hash = previous_hash
+#         self.nonce = nonce
 
-    def compute_hash(self):
-        """
-        A function that return the hash of the block contents.
-        """
-        block_string = json.dumps(self.__dict__, sort_keys=True)
-        return sha256(block_string.encode()).hexdigest()
+#     def compute_hash(self):
+#         """
+#         A function that return the hash of the block contents.
+#         """
+#         block_string = json.dumps(self.__dict__, sort_keys=True)
+#         return sha256(block_string.encode()).hexdigest()
 
 
-class Blockchain:
-    # difficulty of our PoW algorithm
-    difficulty = 3
+# class Blockchain:
+#     # difficulty of our PoW algorithm
+#     difficulty = 3
 
-    def __init__(self):
-        self.unconfirmed_transactions = []
-        self.chain = []
-        if os.environ['LOAD_CHAIN'] == "true":
-            storage.child("/blockchain.pkl").download("blockchain.pkl")
-            try:
-                with open("blockchain.pkl", "rb") as f:
-                    self.chain = pickle.load(f)
-            except FileNotFoundError:
-                self.chain = []
-        else:
-            self.chain = []
+#     def __init__(self):
+#         self.unconfirmed_transactions = []
+#         self.chain = []
+#         if os.environ['LOAD_CHAIN'] == "true":
+#             storage.child("/blockchain.pkl").download("blockchain.pkl")
+#             try:
+#                 with open("blockchain.pkl", "rb") as f:
+#                     self.chain = pickle.load(f)
+#             except FileNotFoundError:
+#                 self.chain = []
+#         else:
+#             self.chain = []
 
-    def create_genesis_block(self):
-        """
-        A function to generate genesis block and appends it to
-        the chain. The block has index 0, previous_hash as 0, and
-        a valid hash.
-        """
-        genesis_block = Block(0, [], time.time(), "0")
-        genesis_block.hash = genesis_block.compute_hash()
-        self.chain.append(genesis_block)
+#     def create_genesis_block(self):
+#         """
+#         A function to generate genesis block and appends it to
+#         the chain. The block has index 0, previous_hash as 0, and
+#         a valid hash.
+#         """
+#         genesis_block = Block(0, [], time.time(), "0")
+#         genesis_block.hash = genesis_block.compute_hash()
+#         self.chain.append(genesis_block)
 
-    @property
-    def last_block(self):
-        return self.chain[-1]
+#     @property
+#     def last_block(self):
+#         return self.chain[-1]
 
-    def add_block(self, block, proof):
-        """
-        A function that adds the block to the chain after verification.
-        Verification includes:
-        * Checking if the proof is valid.
-        * The previous_hash referred in the block and the hash of latest block
-          in the chain match.
-        """
-        previous_hash = self.last_block.hash
+#     def add_block(self, block, proof):
+#         """
+#         A function that adds the block to the chain after verification.
+#         Verification includes:
+#         * Checking if the proof is valid.
+#         * The previous_hash referred in the block and the hash of latest block
+#           in the chain match.
+#         """
+#         previous_hash = self.last_block.hash
 
-        if previous_hash != block.previous_hash:
-            return False
+#         if previous_hash != block.previous_hash:
+#             return False
 
-        if not Blockchain.is_valid_proof(block, proof):
-            return False
+#         if not Blockchain.is_valid_proof(block, proof):
+#             return False
 
-        block.hash = proof
-        self.chain.append(block)
-        return True
+#         block.hash = proof
+#         self.chain.append(block)
+#         return True
 
-    def proof_of_work(self, block):
-        """
-        Function that tries different values of nonce to get a hash
-        that satisfies our difficulty criteria.
-        """
-        block.nonce = 0
+#     def proof_of_work(self, block):
+#         """
+#         Function that tries different values of nonce to get a hash
+#         that satisfies our difficulty criteria.
+#         """
+#         block.nonce = 0
 
-        computed_hash = block.compute_hash()
-        while not computed_hash.startswith('0' * Blockchain.difficulty):
-            block.nonce += 1
-            computed_hash = block.compute_hash()
+#         computed_hash = block.compute_hash()
+#         while not computed_hash.startswith('0' * Blockchain.difficulty):
+#             block.nonce += 1
+#             computed_hash = block.compute_hash()
 
-        return computed_hash
+#         return computed_hash
 
-    def add_new_transaction(self, transaction):
-        self.unconfirmed_transactions.append(transaction)
+#     def add_new_transaction(self, transaction):
+#         self.unconfirmed_transactions.append(transaction)
 
-    @classmethod
-    def is_valid_proof(cls, block, block_hash):
-        """
-        Check if block_hash is valid hash of block and satisfies
-        the difficulty criteria.
-        """
-        return (block_hash.startswith('0' * Blockchain.difficulty) and
-                block_hash == block.compute_hash())
+#     @classmethod
+#     def is_valid_proof(cls, block, block_hash):
+#         """
+#         Check if block_hash is valid hash of block and satisfies
+#         the difficulty criteria.
+#         """
+#         return (block_hash.startswith('0' * Blockchain.difficulty) and
+#                 block_hash == block.compute_hash())
 
-    @classmethod
-    def check_chain_validity(cls, chain):
-        result = True
-        previous_hash = "0"
+#     @classmethod
+#     def check_chain_validity(cls, chain):
+#         result = True
+#         previous_hash = "0"
 
-        for block in chain:
-            block_hash = block.hash
-            # remove the hash field to recompute the hash again
-            # using `compute_hash` method.
-            delattr(block, "hash")
+#         for block in chain:
+#             block_hash = block.hash
+#             # remove the hash field to recompute the hash again
+#             # using `compute_hash` method.
+#             delattr(block, "hash")
 
-            if not cls.is_valid_proof(block, block.hash) or \
-                    previous_hash != block.previous_hash:
-                result = False
-                break
+#             if not cls.is_valid_proof(block, block.hash) or \
+#                     previous_hash != block.previous_hash:
+#                 result = False
+#                 break
 
-            block.hash, previous_hash = block_hash, block_hash
+#             block.hash, previous_hash = block_hash, block_hash
 
-        return result
+#         return result
 
-    def mine(self):
-        """
-        This function serves as an interface to add the pending
-        transactions to the blockchain by adding them to the block
-        and figuring out Proof Of Work.
-        """
-        if not self.unconfirmed_transactions:
-            return False
+#     def mine(self):
+#         """
+#         This function serves as an interface to add the pending
+#         transactions to the blockchain by adding them to the block
+#         and figuring out Proof Of Work.
+#         """
+#         if not self.unconfirmed_transactions:
+#             return False
 
-        last_block = self.last_block
+#         last_block = self.last_block
 
-        new_block = Block(index=last_block.index + 1,
-                          transactions=self.unconfirmed_transactions,
-                          timestamp=time.time(),
-                          previous_hash=last_block.hash)
+#         new_block = Block(index=last_block.index + 1,
+#                           transactions=self.unconfirmed_transactions,
+#                           timestamp=time.time(),
+#                           previous_hash=last_block.hash)
 
-        proof = self.proof_of_work(new_block)
-        self.add_block(new_block, proof)
+#         proof = self.proof_of_work(new_block)
+#         self.add_block(new_block, proof)
 
-        self.unconfirmed_transactions = []
-        # announce it to the network
-        announce_new_block(new_block)
-        with open("blockchain.pkl", "wb") as f:
-            pickle.dump(self.chain, f)
-        storage.child("/blockchain.pkl").put("blockchain.pkl")
-        return new_block.index
+#         self.unconfirmed_transactions = []
+#         # announce it to the network
+#         announce_new_block(new_block)
+#         with open("blockchain.pkl", "wb") as f:
+#             pickle.dump(self.chain, f)
+#         storage.child("/blockchain.pkl").put("blockchain.pkl")
+#         return new_block.index
 
 
 app = Flask(__name__)
 
 # the node's copy of blockchain
-blockchain = Blockchain()
+blockchain = Blockchain(storage)
 blockchain.create_genesis_block()
 
 # the address to other participating members of the network
-peers = set()
+# peers = set()
 
 def rreplace(s, old, new, occurrence):
     li = s.rsplit(old, occurrence)
@@ -257,9 +258,9 @@ def get_user_msgs():
     sender = unquote(request.form["sender"])
     receiver = unquote(request.form["receiver"])
     prikey = request.form["prikey"]
-    # print(repr(prikey))
+    print(repr(prikey))
     prikey = prikey.replace("\\n", "\n")
-    # print(repr(prikey))
+    print(repr(prikey))
     key = encryption.read_private_key_string(prikey.encode("ascii"))
     consensus()
     messages = []
@@ -510,15 +511,15 @@ def consensus():
     return False
 
 
-def announce_new_block(block):
-    """
-    A function to announce to the network once a block has been mined.
-    Other blocks can simply verify the proof of work and add it to their
-    respective chains.
-    """
-    for peer in peers:
-        url = "{}add_block".format(peer)
-        requests.post(url, data=json.dumps(block.__dict__, sort_keys=True))
+# def announce_new_block(block):
+#     """
+#     A function to announce to the network once a block has been mined.
+#     Other blocks can simply verify the proof of work and add it to their
+#     respective chains.
+#     """
+#     for peer in peers:
+#         url = "{}add_block".format(peer)
+#         requests.post(url, data=json.dumps(block.__dict__, sort_keys=True))
 
 
 if __name__ == '__main__':

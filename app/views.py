@@ -6,6 +6,8 @@ from flask import render_template, redirect, request
 
 from app import app
 
+import encryption
+
 # The node with which our application interacts, there can be multiple
 # such nodes as well.
 CONNECTED_NODE_ADDRESS = "http://127.0.0.1:8000"
@@ -18,6 +20,8 @@ def fetch_posts():
     Function to fetch the chain from a blockchain node, parse the
     data and store it locally.
     """
+    prikey = """
+"""
     get_chain_address = "{}/chain".format(CONNECTED_NODE_ADDRESS)
     response = requests.get(get_chain_address)
     if response.status_code == 200:
@@ -27,11 +31,13 @@ def fetch_posts():
             for tx in block["transactions"]:
                 tx["index"] = block["index"]
                 tx["hash"] = block["previous_hash"]
+                tx["message"] = (encryption.decrypt_message(tx["message"], encryption.read_private_key_string(prikey.encode("ascii")))).decode("ascii")
                 content.append(tx)
 
         global posts
         posts = sorted(content, key=lambda k: k['timestamp'],
                        reverse=True)
+        print(posts)
 
 
 @app.route('/')
@@ -54,8 +60,12 @@ def submit_textarea():
     author = request.form["author"]
 
     post_object = {
-        'author': author,
-        'content': post_content,
+        'sender': author,
+        'message': post_content,
+        'value': 0.001,
+        'receiver': "A person",
+        'pubkey': """
+"""
     }
 
     # Submit a transaction

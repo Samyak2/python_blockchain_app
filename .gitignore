@@ -1,2 +1,6 @@
 *.pyc
 **/*.pyc
+.env
+blockchat-warriors-firebase-adminsdk-cihe4-a592ce5c9b.json
+*.pem
+key

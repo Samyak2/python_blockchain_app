@@ -1,10 +1,33 @@
 from hashlib import sha256
-import json
+import simplejson as json
 import time
+import pickle
 
 from flask import Flask, request
 import requests
 
+import pyrebase
+from dotenv import load_dotenv
+load_dotenv()
+from urllib.parse import unquote
+import os
+
+BASE_COINS = 10.00000
+MIN_COINS = 0.0001
+
+config = {
+  "apiKey": os.getenv("FIREBASE_API_KEY"),
+  "authDomain": "blockchat-warriors.firebaseapp.com",
+  "databaseURL": "https://blockchat-warriors.firebaseio.com/",
+  "storageBucket": "blockchat-warriors.appspot.com",
+  "serviceAccount": "blockchat-warriors-firebase-adminsdk-cihe4-a592ce5c9b.json"
+}
+
+firebase = pyrebase.initialize_app(config)
+
+storage = firebase.storage()
+
+import encryption
 
 class Block:
     def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
@@ -24,11 +47,17 @@ class Block:
 
 class Blockchain:
     # difficulty of our PoW algorithm
-    difficulty = 2
+    difficulty = 3
 
     def __init__(self):
         self.unconfirmed_transactions = []
         self.chain = []
+        storage.child("/blockchain.pkl").download("blockchain.pkl")
+        try:
+            with open("blockchain.pkl", "rb") as f:
+                self.chain = pickle.load(f)
+        except FileNotFoundError:
+            self.chain = []
 
     def create_genesis_block(self):
         """
@@ -132,6 +161,9 @@ class Blockchain:
         self.unconfirmed_transactions = []
         # announce it to the network
         announce_new_block(new_block)
+        with open("blockchain.pkl", "wb") as f:
+            pickle.dump(self.chain, f)
+        storage.child("/blockchain.pkl").put("blockchain.pkl")
         return new_block.index
 
 
@@ -144,21 +176,37 @@ blockchain.create_genesis_block()
 # the address to other participating members of the network
 peers = set()
 
-
+def rreplace(s, old, new, occurrence):
+    li = s.rsplit(old, occurrence)
+    return new.join(li)
+def clean_key(key):
+    key = unquote(key)
+    if "+" in key[:26]:
+        key = rreplace(key, "+", " ", 2).replace("+", " ", 2)
+    return key
 # endpoint to submit a new transaction. This will be used by
 # our application to add new data (posts) to the blockchain
 @app.route('/new_transaction', methods=['POST'])
 def new_transaction():
     tx_data = request.get_json()
-    required_fields = ["author", "content"]
-
+    required_fields = ["sender", "receiver", "pubkey"]
+    # print(tx_data)
     for field in required_fields:
         if not tx_data.get(field):
-            return "Invlaid transaction data", 404
-
+            return "Invlaid transaction data", 403
+    if "value" not in tx_data:
+        tx_data["value"] = MIN_COINS
+    tx_data["pubkey"] = clean_key(tx_data["pubkey"])
     tx_data["timestamp"] = time.time()
+    print(tx_data)
+    if "message" in tx_data:
+        tx_data["message"] = encryption.encrypt_message(bytes(tx_data["message"], encoding="UTF-8"), encryption.read_public_key_string(tx_data.pop("pubkey", None).encode("ascii")))
+    else:
+        tx_data["message"] = "**TRANSFER**"
 
     blockchain.add_new_transaction(tx_data)
+    blockchain.mine()
+
 
     return "Success", 201
 
@@ -177,6 +225,142 @@ def get_chain():
                        "chain": chain_data,
                        "peers": list(peers)})
 
+@app.route('/getUserMsgs', methods=['POST'])
+def get_user_msgs():
+    # make sure we've the longest chain
+    required_fields = ["sender", "receiver", "prikey"]
+    for field in required_fields:
+        if field not in request.form:
+            return "Sender or Receiver not provided", 404
+
+    sender = unquote(request.form["sender"])
+    receiver = unquote(request.form["receiver"])
+    prikey = request.form["prikey"]
+    # print(repr(prikey))
+    prikey = prikey.replace("\\n", "\n")
+    # print(repr(prikey))
+    key = encryption.read_private_key_string(prikey.encode("ascii"))
+    consensus()
+    messages = []
+    for block in blockchain.chain:
+        # chain_data.append(block.__dict__)
+        d = block.__dict__
+        dt = [transaction for transaction in d["transactions"] if (transaction["sender"] == sender and transaction["receiver"] == receiver) or (transaction["sender"] == receiver and transaction["receiver"] == sender)]
+        print(dt)
+        for transaction in dt:
+            if transaction["sender"] == sender:
+                try:
+                    msg = encryption.decrypt_message(bytes(transaction["message"]), key)
+                    messages.append([1,msg,transaction["timestamp"]])
+                except TypeError:
+                    pass
+            elif transaction["sender"] == receiver:
+                try:
+                    msg = encryption.decrypt_message(bytes(transaction["message"]), key)
+                    messages.append([2,msg,transaction["timestamp"]])
+                except TypeError:
+                    pass
+    print(messages)
+    return json.dumps({"length": len(messages),
+                       "messages": messages,
+                       "peers": list(peers)})
+
+@app.route('/getNewReceivedMsgs', methods=['POST'])
+def get_new_received_msgs():
+    # make sure we've the longest chain
+    required_fields = ["sender", "receiver", "prikey", "timestamp"]
+    for field in required_fields:
+        if field not in request.form:
+            return "Sender or Receiver not provided", 403
+
+    sender = request.form["sender"]
+    receiver = request.form["receiver"]
+    prikey = clean_key(request.form["prikey"])
+    timestamp = float(request.form["timestamp"])
+    # print(repr(prikey))
+    prikey = prikey.replace("\\n", "\n")
+    # print(repr(prikey))
+    key = encryption.read_private_key_string(prikey.encode("ascii"))
+    consensus()
+    messages = []
+    for block in blockchain.chain:
+        # chain_data.append(block.__dict__)
+        d = block.__dict__
+        dt = [transaction for transaction in d["transactions"] if (transaction["sender"] == receiver and transaction["receiver"] == sender)]
+        # print(dt)
+        for transaction in dt:
+            if transaction["timestamp"] > timestamp:
+                msg = encryption.decrypt_message(bytes(transaction["message"]), key)
+                messages.append([msg,transaction["timestamp"]])
+    # print(messages)
+    return json.dumps({"length": len(messages),
+                       "messages": messages,
+                       "peers": list(peers)})
+
+@app.route('/getCoins', methods=['POST'])
+def get_coins():
+    # make sure we've the longest chain
+    required_fields = ["sender"]
+    for field in required_fields:
+        if field not in request.form:
+            return "Username not provided", 404
+
+    sender = request.form["sender"]
+    consensus()
+    coins = BASE_COINS
+    for block in blockchain.chain:
+        # chain_data.append(block.__dict__)
+        d = block.__dict__
+        sent_txns = [transaction for transaction in d["transactions"] if (transaction["sender"] == sender)]
+        received_txns = [transaction for transaction in d["transactions"] if (transaction["receiver"] == sender)]
+        print(sent_txns, received_txns)
+        for transaction in sent_txns:
+            coins -= float(transaction["value"])
+        for transaction in received_txns:
+            coins += float(transaction["value"])
+    return json.dumps(round(coins, 5))
+
+@app.route('/getUsers', methods=['POST'])
+def get_Users():
+    required_fields = ["sender"]
+    for field in required_fields:
+        if field not in request.form:
+            return "Username not provided", 404
+
+    sender = request.form["sender"]
+    consensus()
+    users = set()
+    recentMsgs = dict()
+    for block in blockchain.chain:
+        d = block.__dict__
+        sent_txns = [transaction for transaction in d["transactions"] if (transaction["sender"] == sender)]
+        received_txns = [transaction for transaction in d["transactions"] if (transaction["receiver"] == sender)]
+        # print(sent_txns, received_txns)
+        for transaction in sent_txns:
+            users.add(transaction["receiver"])
+            if transaction["receiver"] in recentMsgs:
+                if transaction["timestamp"] > recentMsgs[transaction["receiver"]][1]:
+                    recentMsgs[transaction["receiver"]] = [transaction["message"], transaction["timestamp"]]
+            else:
+                recentMsgs[transaction["receiver"]] = [transaction["message"], transaction["timestamp"]]
+        for transaction in received_txns:
+            users.add(transaction["sender"])
+            if transaction["sender"] in recentMsgs:
+                if transaction["timestamp"] > recentMsgs[transaction["sender"]][1]:
+                    recentMsgs[transaction["sender"]] = [transaction["message"], transaction["timestamp"]]
+            else:
+                recentMsgs[transaction["sender"]] = [transaction["message"], transaction["timestamp"]]
+    print(users, recentMsgs)
+    return json.dumps({"users": list(users), "recentmsgs": recentMsgs})
+
+@app.route("/generateKeys", methods=["POST"])
+def generate_keys():
+    prikey, pubkey = encryption.generate_keys()
+    prikey = encryption.get_private_key_string(prikey)
+    print(repr(prikey))
+    pubkey = encryption.get_public_key_string(pubkey)
+    print(repr(pubkey))
+    return json.dumps({"prikey": prikey, "pubkey": pubkey})
 
 # endpoint to request the node to mine the unconfirmed
 # transactions (if any). We'll be using it to initiate

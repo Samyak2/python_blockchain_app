@@ -20,7 +20,7 @@ config = {
   "authDomain": "blockchat-warriors.firebaseapp.com",
   "databaseURL": "https://blockchat-warriors.firebaseio.com/",
   "storageBucket": "blockchat-warriors.appspot.com",
-  "serviceAccount": "blockchat-warriors-firebase-adminsdk-cihe4-a592ce5c9b.json"
+#   "serviceAccount": "blockchat-warriors-firebase-adminsdk-cihe4-a592ce5c9b.json"
 }
 
 firebase = pyrebase.initialize_app(config)

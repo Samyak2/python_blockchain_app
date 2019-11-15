@@ -102,7 +102,7 @@ def decrypt_message(encrypted, private_key):
             )
         )
     except ValueError:
-        original_message = "Error"
+        original_message = "**Decryption Error**"
     return original_message
 
 if __name__ == "__main__":

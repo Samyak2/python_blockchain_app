@@ -258,9 +258,9 @@ def get_user_msgs():
     sender = unquote(request.form["sender"])
     receiver = unquote(request.form["receiver"])
     prikey = request.form["prikey"]
-    print(repr(prikey))
+    # print(repr(prikey))
     prikey = prikey.replace("\\n", "\n")
-    print(repr(prikey))
+    # print(repr(prikey))
     key = encryption.read_private_key_string(prikey.encode("ascii"))
     consensus()
     messages = []
@@ -335,7 +335,7 @@ def get_coins():
         d = block.__dict__
         sent_txns = [transaction for transaction in d["transactions"] if (transaction["sender"] == sender)]
         received_txns = [transaction for transaction in d["transactions"] if (transaction["receiver"] == sender)]
-        print(sent_txns, received_txns)
+        # print(sent_txns, received_txns)
         for transaction in sent_txns:
             coins -= float(transaction["value"])
         for transaction in received_txns:
@@ -372,7 +372,7 @@ def get_Users():
                     recentMsgs[transaction["sender"]] = [transaction["message"], transaction["timestamp"]]
             else:
                 recentMsgs[transaction["sender"]] = [transaction["message"], transaction["timestamp"]]
-    print(users, recentMsgs)
+    # print(users, recentMsgs)
     return json.dumps({"users": list(users), "recentmsgs": recentMsgs})
 
 @app.route("/generateKeys", methods=["POST"])

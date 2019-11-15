@@ -186,6 +186,11 @@ def clean_key(key):
     return key
 # endpoint to submit a new transaction. This will be used by
 # our application to add new data (posts) to the blockchain
+
+@app.route("/")
+def index():
+    return "<h1>This is an API please do not spam.</h1>"
+
 @app.route('/new_transaction', methods=['POST'])
 def new_transaction():
     tx_data = request.get_json()

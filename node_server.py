@@ -20,7 +20,20 @@ config = {
   "authDomain": "blockchat-warriors.firebaseapp.com",
   "databaseURL": "https://blockchat-warriors.firebaseio.com/",
   "storageBucket": "blockchat-warriors.appspot.com",
-#   "serviceAccount": "blockchat-warriors-firebase-adminsdk-cihe4-a592ce5c9b.json"
+#   "serviceAccount": "blockchat-warriors-firebase-adminsdk-cihe4-a592ce5c9b.json",
+    'serviceAccount': {
+        # Your "Service account ID," which looks like an email address.
+        'client_email': os.environ['FIREBASE_CLIENT_EMAIL'], 
+        # The part of your Firebase database URL before `firebaseio.com`. 
+        # e.g. `fiery-flames-1234`
+        'client_id': os.environ['FIREBASE_CLIENT_ID'],
+        # The key itself, a long string with newlines, starting with 
+        # `-----BEGIN PRIVATE KEY-----\n`
+        'private_key': os.environ['FIREBASE_PRIVATE_KEY'].replace('\\n', '\n'),
+        # Your service account "key ID." Mine is 40 alphanumeric characters.
+        'private_key_id': os.environ['FIREBASE_PRIVATE_KEY_ID'],
+        'type': 'service_account'
+    },
 }
 
 firebase = pyrebase.initialize_app(config)

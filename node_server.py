@@ -227,7 +227,7 @@ def new_transaction():
         tx_data["message"] = "**TRANSFER**"
 
     blockchain.add_new_transaction(tx_data)
-    blockchain.mine()
+    blockchain.mine(storage)
 
 
     return "Success", 201

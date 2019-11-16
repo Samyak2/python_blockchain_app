@@ -32,9 +32,9 @@ class Blockchain:
     def __init__(self, storage):
         self.unconfirmed_transactions = []
         self.chain = []
-        self.storage = storage
+        # self.storage = storage
         if os.environ['LOAD_CHAIN'] == "true":
-            self.storage.child("/blockchain.pkl").download("blockchain.pkl")
+            storage.child("/blockchain.pkl").download("blockchain.pkl")
             try:
                 with open("blockchain.pkl", "rb") as f:
                     self.chain = pickle.load(f)
@@ -123,7 +123,7 @@ class Blockchain:
 
         return result
 
-    def mine(self):
+    def mine(self, storage):
         """
         This function serves as an interface to add the pending
         transactions to the blockchain by adding them to the block
@@ -147,7 +147,7 @@ class Blockchain:
         announce_new_block(new_block)
         with open("blockchain.pkl", "wb") as f:
             pickle.dump(self.chain, f)
-        self.storage.child("/blockchain.pkl").put("blockchain.pkl")
+        storage.child("/blockchain.pkl").put("blockchain.pkl")
         return new_block.index
 
 

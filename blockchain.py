@@ -143,7 +143,7 @@ class Blockchain:
         if not self.unconfirmed_transactions:
             return False
 
-        while not is_mining():
+        while is_mining():
             time.sleep(0.1)
 
         set_mining()

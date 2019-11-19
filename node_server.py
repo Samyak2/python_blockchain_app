@@ -335,7 +335,7 @@ def get_coins():
         d = block.__dict__
         sent_txns = [transaction for transaction in d["transactions"] if (transaction["sender"] == sender)]
         received_txns = [transaction for transaction in d["transactions"] if (transaction["receiver"] == sender)]
-        # print(sent_txns, received_txns)
+        print(sent_txns, received_txns)
         for transaction in sent_txns:
             coins -= float(transaction["value"])
         for transaction in received_txns:

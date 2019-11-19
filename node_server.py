@@ -389,7 +389,7 @@ def generate_keys():
 # a command to mine from our application itself.
 @app.route('/mine', methods=['GET'])
 def mine_unconfirmed_transactions():
-    result = blockchain.mine()
+    result = blockchain.mine(storage)
     if not result:
         return "No transactions to mine"
     return "Block #{} is mined.".format(result)
@@ -524,4 +524,4 @@ def consensus():
 
 if __name__ == '__main__':
     # Threaded option to enable multiple instances for multiple user access support
-    app.run(threaded=True)
+    app.run(threaded=False)

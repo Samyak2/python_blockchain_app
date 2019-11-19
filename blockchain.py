@@ -7,6 +7,17 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
+# from config import Transaction
+
+# from sqlalchemy import create_engine
+# from sqlalchemy.orm import Session
+
+# from config import metadata, Transaction
+
+from dbtest import sql_connection, is_mining, set_mining, set_notmining
+
+# engine = create_engine('postgres+psycopg2://{}'.format(os.environ["DATABASE_URL"][11:]))
+
 peers = set()
 
 class Block:
@@ -132,12 +143,30 @@ class Blockchain:
         if not self.unconfirmed_transactions:
             return False
 
+        while not is_mining():
+            time.sleep(0.1)
+
+        set_mining()
         last_block = self.last_block
+
+        # session = Session(engine)
+        # pending_txns = session.query(Transaction).all()
+
+        # print(pending_txns)
+
+        # if len(pending_txns) <= 0:
+            # return False
+        
+        # pending_txns2 = [{"sender": i.sender, "receiver": i.receiver, "value": i.value, "message": bytes(i.message), "timestamp": i.timestamp} for i in pending_txns]
+        # print(pending_txns2)
+        # print(self.unconfirmed_transactions)
 
         new_block = Block(index=last_block.index + 1,
                           transactions=self.unconfirmed_transactions,
                           timestamp=time.time(),
                           previous_hash=last_block.hash)
+
+        # pending_txns.delete()
 
         proof = self.proof_of_work(new_block)
         self.add_block(new_block, proof)
@@ -148,6 +177,7 @@ class Blockchain:
         with open("blockchain.pkl", "wb") as f:
             pickle.dump(self.chain, f)
         storage.child("/blockchain.pkl").put("blockchain.pkl")
+        set_notmining()
         return new_block.index
 
 

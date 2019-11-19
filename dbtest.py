@@ -32,12 +32,12 @@ def is_mining():
 
 def set_mining():
     cursor = con.cursor()
-    cursor.execute("UPDATE mining SET mining=true where id=1")
+    cursor.execute("UPDATE mining SET mining=1 where id=1")
     con.commit()
 
 def set_notmining():
     cursor = con.cursor()
-    cursor.execute("UPDATE mining SET mining=false where id=1")
+    cursor.execute("UPDATE mining SET mining=0 where id=1")
     con.commit()
 
 if __name__ == "__main__":

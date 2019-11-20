@@ -274,7 +274,12 @@ def get_user_msgs():
     # print(repr(prikey))
     prikey = prikey.replace("\\n", "\n")
     # print(repr(prikey))
-    key = encryption.read_private_key_string(prikey.encode("ascii"))
+    try:
+        key = encryption.read_private_key_string(prikey.encode("ascii"))
+    except ValueError as e:
+        return json.dumps({"length": 0,
+                       "messages": [[2, "Decryption Error. This account is probably deleted."]],
+                       "peers": list(peers)})
     consensus()
     messages = []
     for block in blockchain.chain:
@@ -495,6 +500,10 @@ def verify_and_add_block():
 @app.route('/pending_tx')
 def get_pending_tx():
     return json.dumps(blockchain.unconfirmed_transactions)
+
+@app.route('/ismining')
+def is_mining():
+    return json.dumps(blockchain.is_mining())
 
 
 def consensus():

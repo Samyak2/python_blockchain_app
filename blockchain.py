@@ -6,6 +6,7 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 import os
+import threading
 
 # from config import Transaction
 
@@ -19,6 +20,23 @@ from dbtest import sql_connection, is_mining, set_mining, set_notmining
 # engine = create_engine('postgres+psycopg2://{}'.format(os.environ["DATABASE_URL"][11:]))
 
 peers = set()
+
+def create_chain_from_dump(chain_dump):
+    blockchain = Blockchain(genesis=False)
+    for idx, block_data in enumerate(chain_dump):
+        block = Block(block_data["index"],
+                      block_data["transactions"],
+                      block_data["timestamp"],
+                      block_data["previous_hash"],
+                      block_data["nonce"])
+        proof = block_data['hash']
+        if idx > 0:
+            added = blockchain.add_block(block, proof)
+            if not added:
+                raise Exception("The chain dump is tampered!!")
+        else:
+            blockchain.chain.append(block)
+    return blockchain
 
 class Block:
     def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
@@ -40,19 +58,33 @@ class Blockchain:
     # difficulty of our PoW algorithm
     difficulty = 3
 
-    def __init__(self, storage):
+    def __init__(self, storage=None, genesis=True):
         self.unconfirmed_transactions = []
         self.chain = []
         # self.storage = storage
-        if os.environ['LOAD_CHAIN'] == "true":
-            storage.child("/blockchain.pkl").download("blockchain.pkl")
+        if os.environ['LOAD_CHAIN'] == "true" and storage is not None:
+            # storage.child("/blockchain.pkl").download("blockchain.pkl")
+            # try:
+            #     with open("blockchain.pkl", "rb") as f:
+            #         self.chain = pickle.load(f)
+            # except FileNotFoundError:
+            #     self.chain = []
+            #     self.create_genesis_block()
             try:
-                with open("blockchain.pkl", "rb") as f:
-                    self.chain = pickle.load(f)
-            except FileNotFoundError:
+                storage.child("/blockchain.json").download("blockchain.json")
+                with open("blockchain.json", "rt") as f:
+                    newchain = create_chain_from_dump(json.load(f)["chain"])
+                    self.__dict__.update(newchain.__dict__)
+            except (FileNotFoundError, AttributeError) as e:
+                print(e)
+                # raise e
                 self.chain = []
+                if genesis:
+                    self.create_genesis_block()
         else:
             self.chain = []
+            if genesis:
+                self.create_genesis_block()
 
     def create_genesis_block(self):
         """
@@ -76,12 +108,18 @@ class Blockchain:
         * The previous_hash referred in the block and the hash of latest block
           in the chain match.
         """
-        previous_hash = self.last_block.hash
+        # print(block.__dict__)
+        try:
+            previous_hash = self.last_block.hash
+        except AttributeError:
+            previous_hash = block.previous_hash
 
         if previous_hash != block.previous_hash:
+            print("Hashes don't match\n{}\n{}".format(previous_hash, block.previous_hash))
             return False
 
-        if not Blockchain.is_valid_proof(block, proof):
+        if not self.is_valid_proof(block, proof):
+            print("block is not valid")
             return False
 
         block.hash = proof
@@ -174,12 +212,39 @@ class Blockchain:
         self.unconfirmed_transactions = []
         # announce it to the network
         announce_new_block(new_block)
-        with open("blockchain.pkl", "wb") as f:
-            pickle.dump(self.chain, f)
-        storage.child("/blockchain.pkl").put("blockchain.pkl")
-        set_notmining()
+        # with open("blockchain.pkl", "wb") as f:
+        #     pickle.dump(self.chain, f)
+        # with open("blockchain.json", "wb") as f:
+        #     f.write(self.get_chain_json())
+        # storage.child("/blockchain.pkl").put("blockchain.pkl")
+        # # storage.child("/blockchain.pkl").put("blockchain.pkl")
+        # set_notmining()
+        # print("starting thread")
+        upload_thread = threading.Thread(target=self.upload_files, args=(storage,))
+        upload_thread.start()
+        # print("started thread")
         return new_block.index
 
+    def upload_files(self, storage):
+        # with open("blockchain.pkl", "wb") as f:
+        #     pickle.dump(self.chain, f)
+        print("getting json...")
+        with open("blockchain.json", "wb") as f:
+            f.write(bytes(self.get_chain_json(), encoding="utf-8"))
+        # storage.child("/blockchain.pkl").put("blockchain.pkl")
+        storage.child("/blockchain.json").put("blockchain.json")
+        print("uploaded json...")
+        set_notmining()
+        return True
+
+    def get_chain_json(self):
+        chain_data = []
+        for block in self.chain:
+            # print(block.__dict__)
+            chain_data.append(block.__dict__)
+        return json.dumps({"length": len(chain_data),
+                        "chain": chain_data,
+                        "peers": list(peers)})
 
 def announce_new_block(block):
     """

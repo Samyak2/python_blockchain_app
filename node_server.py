@@ -4,6 +4,7 @@ import time
 import pickle
 
 from flask import Flask, request
+# from flask_sqlalchemy import SQLAlchemy
 # import requests
 
 import pyrebase
@@ -12,6 +13,8 @@ load_dotenv()
 from urllib.parse import unquote
 import os
 from blockchain import Block, Blockchain, peers
+# from flaskdb import db
+# from config import Transaction, metadata
 
 BASE_COINS = 10.00000
 MIN_COINS = 0.0001
@@ -186,9 +189,13 @@ import encryption
 
 app = Flask(__name__)
 
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres+psycopg2://{}'.format(os.environ["DATABASE_URL"][11:])
+# db.init_app(app)
+
 # the node's copy of blockchain
 blockchain = Blockchain(storage)
-blockchain.create_genesis_block()
+# blockchain.create_genesis_block()
 
 # the address to other participating members of the network
 # peers = set()
@@ -220,13 +227,19 @@ def new_transaction():
         tx_data["value"] = MIN_COINS
     tx_data["pubkey"] = clean_key(tx_data["pubkey"])
     tx_data["timestamp"] = time.time()
-    print(tx_data)
     if "message" in tx_data:
         tx_data["message"] = encryption.encrypt_message(bytes(tx_data["message"], encoding="UTF-8"), encryption.read_public_key_string(tx_data.pop("pubkey", None).encode("ascii")))
     else:
         tx_data["message"] = "**TRANSFER**"
 
     blockchain.add_new_transaction(tx_data)
+
+    # print(tx_data)
+    # t = Transaction(tx_data["sender"], tx_data["receiver"], tx_data["value"], tx_data["message"], tx_data["timestamp"])
+
+    # db.session.add(t)
+    # db.session.commit()
+    print("start mining")
     blockchain.mine(storage)
 
 

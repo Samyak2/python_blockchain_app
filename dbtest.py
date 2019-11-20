@@ -36,6 +36,7 @@ def set_mining():
     con.commit()
 
 def set_notmining():
+    con = sqlite3.connect('mining.db')
     cursor = con.cursor()
     cursor.execute("UPDATE mining SET mining=0 where id=1")
     con.commit()

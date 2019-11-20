@@ -29,7 +29,10 @@ def create_chain_from_dump(chain_dump):
                       block_data["timestamp"],
                       block_data["previous_hash"],
                       block_data["nonce"])
-        proof = block_data['hash']
+        if 'hash' in block_data:
+            proof = block_data['hash']
+        else:
+            proof = block.compute_hash()
         if idx > 0:
             added = blockchain.add_block(block, proof)
             if not added:

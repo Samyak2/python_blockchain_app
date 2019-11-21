@@ -228,7 +228,7 @@ def new_transaction():
     tx_data["pubkey"] = clean_key(tx_data["pubkey"])
     tx_data["timestamp"] = time.time()
     if "message" in tx_data:
-        tx_data["message"] = encryption.encrypt_message(bytes(tx_data["message"]), encryption.read_public_key_string(tx_data.pop("pubkey", None).encode("ascii")))
+        tx_data["message"] = encryption.encrypt_message(bytes(tx_data["message"], encoding="utf-8"), encryption.read_public_key_string(tx_data.pop("pubkey", None).encode("ascii")))
     else:
         tx_data["message"] = "**TRANSFER**"
 

@@ -330,8 +330,11 @@ def get_new_received_msgs():
         # print(dt)
         for transaction in dt:
             if transaction["timestamp"] > timestamp:
-                msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
-                messages.append([msg,transaction["timestamp"]])
+                try:
+                    msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
+                    messages.append([msg,transaction["timestamp"]])
+                except TypeError:
+                    pass
     # print(messages)
     return json.dumps({"length": len(messages),
                        "messages": messages,

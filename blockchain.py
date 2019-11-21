@@ -72,7 +72,7 @@ class Blockchain:
             #     self.create_genesis_block()
             try:
                 storage.child("/blockchain.json").download("blockchain.json")
-                with open("blockchain.json", "rt") as f:
+                with open("blockchain.json", "rt", encoding='UTF-8') as f:
                     newchain = create_chain_from_dump(json.load(f)["chain"])
                     self.__dict__.update(newchain.__dict__)
             except (FileNotFoundError, AttributeError) as e:
@@ -229,7 +229,7 @@ class Blockchain:
         # with open("blockchain.pkl", "wb") as f:
         #     pickle.dump(self.chain, f)
         print("getting json...")
-        with open("blockchain.json", "wb") as f:
+        with open("blockchain.json", "wb", encoding='UTF-8') as f:
             f.write(bytes(self.get_chain_json(), encoding="utf-8"))
         # storage.child("/blockchain.pkl").put("blockchain.pkl")
         storage.child("/blockchain.json").put("blockchain.json")

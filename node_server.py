@@ -290,13 +290,13 @@ def get_user_msgs():
         for transaction in dt:
             if transaction["sender"] == sender:
                 try:
-                    msg = encryption.decrypt_message(bytes(transaction["message"]), key)
+                    msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
                     messages.append([1,msg,transaction["timestamp"]])
                 except TypeError:
                     pass
             elif transaction["sender"] == receiver:
                 try:
-                    msg = encryption.decrypt_message(bytes(transaction["message"]), key)
+                    msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
                     messages.append([2,msg,transaction["timestamp"]])
                 except TypeError:
                     pass
@@ -311,7 +311,7 @@ def get_new_received_msgs():
     required_fields = ["sender", "receiver", "prikey", "timestamp"]
     for field in required_fields:
         if field not in request.form:
-            return "Sender or Receiver not provided", 403
+            return "Sender, Receiver, Private key or Timestamp not provided", 403
 
     sender = request.form["sender"]
     receiver = request.form["receiver"]
@@ -330,7 +330,7 @@ def get_new_received_msgs():
         # print(dt)
         for transaction in dt:
             if transaction["timestamp"] > timestamp:
-                msg = encryption.decrypt_message(bytes(transaction["message"]), key)
+                msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
                 messages.append([msg,transaction["timestamp"]])
     # print(messages)
     return json.dumps({"length": len(messages),

@@ -29,11 +29,8 @@ def create_chain_from_dump(chain_dump):
                       block_data["timestamp"],
                       block_data["previous_hash"],
                       block_data["nonce"])
-        if 'hash' in block_data:
-            proof = block_data['hash']
-        else:
-            proof = block.compute_hash()
         if idx > 0:
+            proof = block_data['hash']
             added = blockchain.add_block(block, proof)
             if not added:
                 raise Exception("The chain dump is tampered!!")
@@ -248,6 +245,9 @@ class Blockchain:
         return json.dumps({"length": len(chain_data),
                         "chain": chain_data,
                         "peers": list(peers)})
+
+    def is_mining(self):
+        return is_mining()
 
 def announce_new_block(block):
     """

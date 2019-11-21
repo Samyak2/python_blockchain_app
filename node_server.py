@@ -228,7 +228,7 @@ def new_transaction():
     tx_data["pubkey"] = clean_key(tx_data["pubkey"])
     tx_data["timestamp"] = time.time()
     if "message" in tx_data:
-        tx_data["message"] = encryption.encrypt_message(bytes(tx_data["message"], encoding="UTF-8"), encryption.read_public_key_string(tx_data.pop("pubkey", None).encode("ascii")))
+        tx_data["message"] = encryption.encrypt_message(bytes(tx_data["message"]), encryption.read_public_key_string(tx_data.pop("pubkey", None).encode("ascii")))
     else:
         tx_data["message"] = "**TRANSFER**"
 
@@ -290,13 +290,13 @@ def get_user_msgs():
         for transaction in dt:
             if transaction["sender"] == sender:
                 try:
-                    msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
+                    msg = encryption.decrypt_message(bytes(transaction["message"]), key)
                     messages.append([1,msg,transaction["timestamp"]])
                 except TypeError:
                     pass
             elif transaction["sender"] == receiver:
                 try:
-                    msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
+                    msg = encryption.decrypt_message(bytes(transaction["message"]), key)
                     messages.append([2,msg,transaction["timestamp"]])
                 except TypeError:
                     pass
@@ -331,7 +331,7 @@ def get_new_received_msgs():
         for transaction in dt:
             if transaction["timestamp"] > timestamp:
                 try:
-                    msg = encryption.decrypt_message(bytes(transaction["message"], encoding="utf-8"), key)
+                    msg = encryption.decrypt_message(bytes(transaction["message"]), key)
                     messages.append([msg,transaction["timestamp"]])
                 except TypeError:
                     pass

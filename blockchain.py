@@ -45,6 +45,7 @@ class Block:
         self.timestamp = timestamp
         self.previous_hash = previous_hash
         self.nonce = nonce
+        set_notmining()
 
     def compute_hash(self):
         """

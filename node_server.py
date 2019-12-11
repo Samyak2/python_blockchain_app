@@ -5,7 +5,7 @@ import pickle
 
 from flask import Flask, request
 # from flask_sqlalchemy import SQLAlchemy
-# import requests
+import requests
 
 import pyrebase
 from dotenv import load_dotenv
@@ -520,7 +520,7 @@ def consensus():
     current_len = len(blockchain.chain)
 
     for node in peers:
-        print('{}/chain'.format(node))
+        print('{}chain'.format(node))
         response = requests.get('{}/chain'.format(node))
         print("Content", response.content)
         length = response.json()['length']
@@ -536,17 +536,17 @@ def consensus():
     return False
 
 
-# def announce_new_block(block):
-#     """
-#     A function to announce to the network once a block has been mined.
-#     Other blocks can simply verify the proof of work and add it to their
-#     respective chains.
-#     """
-#     for peer in peers:
-#         url = "{}add_block".format(peer)
-#         requests.post(url, data=json.dumps(block.__dict__, sort_keys=True))
+def announce_new_block(block):
+    """
+    A function to announce to the network once a block has been mined.
+    Other blocks can simply verify the proof of work and add it to their
+    respective chains.
+    """
+    for peer in peers:
+        url = "{}add_block".format(peer)
+        headers = {'Content-Type': "application/json"}
+        requests.post(url, data=json.dumps(block.__dict__, sort_keys=True), headers=headers)
 
 
 if __name__ == '__main__':
-    # Threaded option to enable multiple instances for multiple user access support
     app.run(threaded=False, processes=1)

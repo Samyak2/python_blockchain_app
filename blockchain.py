@@ -230,7 +230,7 @@ class Blockchain:
         # with open("blockchain.pkl", "wb") as f:
         #     pickle.dump(self.chain, f)
         print("getting json...")
-        with open("blockchain.json", "wb", encoding='UTF-8') as f:
+        with open("blockchain.json", "wt", encoding='UTF-8') as f:
             f.write(bytes(self.get_chain_json(), encoding="utf-8"))
         # storage.child("/blockchain.pkl").put("blockchain.pkl")
         storage.child("/blockchain.json").put("blockchain.json")
